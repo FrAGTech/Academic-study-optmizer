@@ -1,0 +1,6 @@
+{
+  "name": "Academic Study Optimizer",
+  "description": "An intelligent study companion powered by Google AI that helps university students optimize their study routines, sync with Google Calendar, and track academic progress.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
