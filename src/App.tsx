@@ -13,9 +13,10 @@ import ProgressTracker from './components/ProgressTracker';
 import WellbeingSection from './components/WellbeingSection';
 import AlertsManager from './components/AlertsManager';
 import CalendarSyncManager from './components/CalendarSyncManager';
+import Leaderboard from './components/Leaderboard';
 import { 
   Sparkles, BookOpen, Calendar, Clock, BarChart2, Heart, BellRing, ClipboardList,
-  GraduationCap, Info, ChevronRight, Check, Play, CalendarRange
+  GraduationCap, Info, ChevronRight, Check, Play, CalendarRange, Trophy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -196,7 +197,7 @@ const DEFAULT_WELLBEING_LOGS: WellbeingLog[] = [
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'schedule' | 'timetable' | 'courses' | 'progress' | 'wellbeing' | 'alerts' | 'calendar'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'schedule' | 'timetable' | 'courses' | 'progress' | 'wellbeing' | 'alerts' | 'calendar' | 'leaderboard'>('dashboard');
 
   // Application State
   const [courses, setCourses] = useState<Course[]>(() => {
@@ -225,6 +226,7 @@ export default function App() {
   });
 
   const [isGeneratingSchedule, setIsGeneratingSchedule] = useState(false);
+  const [aiNotice, setAiNotice] = useState<string | null>(null);
 
   // Synchronize state changes to localStorage
   useEffect(() => {
@@ -340,6 +342,12 @@ export default function App() {
           isCompleted: false,
         }));
         setSchedule(hydrated);
+        
+        if (data.isFallback) {
+          setAiNotice(data.message || "Offline study routine generated due to cloud traffic.");
+        } else {
+          setAiNotice(null);
+        }
       }
     } catch (err: any) {
       alert("Error calling Google AI endpoint. Please check console or verify your server is running with GEMINI_API_KEY.");
@@ -399,8 +407,8 @@ export default function App() {
               <GraduationCap className="w-6 h-6 stroke-[2]" />
             </div>
             <div>
-              <h1 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-1.5">
-                Academic Study Optimizer
+              <h1 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-1.5 animate-fade-in">
+                StudyHero
                 <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Google AI</span>
               </h1>
               <p className="text-xs text-slate-500 font-medium">Cognitive science-based routine optimization & well-being guard</p>
@@ -416,6 +424,17 @@ export default function App() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 space-y-6" id="app-main">
+        {aiNotice && (
+          <div className="bg-amber-500/10 border border-amber-500/20 text-amber-800 rounded-2xl p-4 text-xs md:text-sm font-semibold flex justify-between items-center gap-3 animate-fade-in shadow-3xs">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-600 flex-shrink-0 animate-pulse" />
+              <span>{aiNotice}</span>
+            </div>
+            <button onClick={() => setAiNotice(null)} className="text-amber-900/60 hover:text-amber-950 font-bold px-2 cursor-pointer text-xs uppercase tracking-wider">
+              Dismiss
+            </button>
+          </div>
+        )}
         
         {/* Navigation Ribbon Tabs */}
         <div className="flex gap-1.5 overflow-x-auto pb-1.5 scrollbar-thin scrollbar-thumb-slate-300">
@@ -428,6 +447,7 @@ export default function App() {
             { id: 'wellbeing', label: 'Burnout Prevention', icon: Heart, color: 'text-rose-600' },
             { id: 'alerts', label: 'Study Alerts', icon: BellRing, color: 'text-cyan-600' },
             { id: 'calendar', label: 'Google Calendar Sync', icon: CalendarRange, color: 'text-indigo-600' },
+            { id: 'leaderboard', label: 'Success Leaderboard', icon: Trophy, color: 'text-amber-500' },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -458,6 +478,7 @@ export default function App() {
               progressLogs={progressLogs}
               wellbeingLogs={wellbeingLogs}
               onFetchSuggestions={handleFetchSuggestions}
+              onNavigateToTab={(tab) => setActiveTab(tab)}
             />
           )}
 
@@ -521,6 +542,15 @@ export default function App() {
               schedule={schedule}
               timetable={timetable}
               courses={courses}
+            />
+          )}
+
+          {activeTab === 'leaderboard' && (
+            <Leaderboard
+              courses={courses}
+              schedule={schedule}
+              progressLogs={progressLogs}
+              wellbeingLogs={wellbeingLogs}
             />
           )}
         </div>

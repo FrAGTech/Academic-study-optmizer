@@ -20,6 +20,7 @@ interface DashboardProps {
   progressLogs: StudyProgressLog[];
   wellbeingLogs: WellbeingLog[];
   onFetchSuggestions: () => Promise<any>;
+  onNavigateToTab?: (tab: 'dashboard' | 'schedule' | 'timetable' | 'courses' | 'progress' | 'wellbeing' | 'alerts' | 'calendar' | 'leaderboard') => void;
 }
 
 export default function Dashboard({
@@ -28,6 +29,7 @@ export default function Dashboard({
   progressLogs,
   wellbeingLogs,
   onFetchSuggestions,
+  onNavigateToTab,
 }: DashboardProps) {
   const [suggestions, setSuggestions] = useState<any>(null);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
@@ -70,6 +72,40 @@ export default function Dashboard({
   const averageMastery = progressLogs.length > 0 
     ? (progressLogs.reduce((sum, log) => sum + log.masteryRating, 0) / progressLogs.length).toFixed(1)
     : 'N/A';
+
+  // Compute Success Score
+  const completedSessionsCount = schedule.filter(e => e.isCompleted && e.courseId !== 'break').length;
+  const totalStudyMinutes = progressLogs.reduce((sum, log) => sum + log.durationMinutes, 0);
+  const totalWaterCups = wellbeingLogs.reduce((sum, log) => sum + log.waterIntakeCups, 0);
+  const totalBreathingBreaks = wellbeingLogs.reduce((sum, log) => sum + log.breaksTaken, 0);
+  const totalSleepHours = wellbeingLogs.reduce((sum, log) => sum + log.sleepHours, 0);
+  const avgMasteryRating = progressLogs.length > 0
+    ? progressLogs.reduce((sum, log) => sum + log.masteryRating, 0) / progressLogs.length
+    : 0;
+
+  let userScore = 0;
+  userScore += completedSessionsCount * 50;
+  userScore += totalStudyMinutes * 1;
+  userScore += Math.round(avgMasteryRating * 30);
+  userScore += totalWaterCups * 5;
+  userScore += totalBreathingBreaks * 20;
+  userScore += Math.round(totalSleepHours * 2);
+
+  // Bonus Achievements
+  const bonusAchievements = [
+    wellbeingLogs.some(log => log.waterIntakeCups >= 8),
+    totalBreathingBreaks >= 5,
+    progressLogs.some(log => log.masteryRating === 5),
+    wellbeingLogs.length > 0 && (totalSleepHours / wellbeingLogs.length) >= 7.5,
+  ];
+  bonusAchievements.forEach(unlocked => {
+    if (unlocked) userScore += 100;
+  });
+
+  const peerScores = [1120, 980, 780, 590];
+  const allRankings = [...peerScores, userScore].sort((a, b) => b - a);
+  const userRank = allRankings.indexOf(userScore) + 1;
+  const rankSuffix = userRank === 1 ? 'st' : userRank === 2 ? 'nd' : userRank === 3 ? 'rd' : 'th';
 
   // Calculate study hours per course for chart
   const hoursPerCourseData = courses.map(course => {
@@ -121,9 +157,40 @@ export default function Dashboard({
 
   return (
     <div className="space-y-6" id="dashboard-section">
+      {/* Success Score Quick Standings Banner */}
+      <div className="bg-gradient-to-r from-amber-500/10 via-indigo-500/5 to-slate-50 border border-indigo-150 rounded-3xl p-5 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-fade-in">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-amber-400 rounded-2xl flex items-center justify-center text-white text-2xl shadow-xs">
+            🏆
+          </div>
+          <div className="text-left">
+            <h3 className="font-extrabold text-slate-800 text-sm md:text-base flex items-center gap-1.5">
+              Current Success Standing: <span className="text-indigo-700 font-extrabold">{userRank}{rankSuffix} Place</span>
+            </h3>
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
+              You've earned <strong className="text-slate-700 font-bold">{userScore} success points</strong>. Check off focus routine blocks and track wellness indicators to rank up!
+            </p>
+          </div>
+        </div>
+        {onNavigateToTab && (
+          <button
+            onClick={() => onNavigateToTab('leaderboard')}
+            className="w-full md:w-auto flex-shrink-0 inline-flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition-colors cursor-pointer"
+          >
+            Open Success Leaderboard <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="kpi-cards">
-        <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-3xs flex items-center gap-4">
+        <div 
+          onClick={() => onNavigateToTab?.('progress')}
+          className={`bg-white border border-slate-100 rounded-2xl p-5 shadow-3xs flex items-center gap-4 ${
+            onNavigateToTab ? 'hover:border-emerald-300 hover:shadow-xs transition-all cursor-pointer' : ''
+          }`}
+          title={onNavigateToTab ? "Click to view Study Progress Log" : undefined}
+        >
           <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600">
             <Clock className="w-6 h-6" />
           </div>
@@ -134,7 +201,13 @@ export default function Dashboard({
           </div>
         </div>
 
-        <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-3xs flex items-center gap-4">
+        <div 
+          onClick={() => onNavigateToTab?.('schedule')}
+          className={`bg-white border border-slate-100 rounded-2xl p-5 shadow-3xs flex items-center gap-4 ${
+            onNavigateToTab ? 'hover:border-indigo-300 hover:shadow-xs transition-all cursor-pointer' : ''
+          }`}
+          title={onNavigateToTab ? "Click to view AI Study Routine" : undefined}
+        >
           <div className="p-3.5 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600">
             <CheckCircle className="w-6 h-6" />
           </div>
@@ -145,7 +218,13 @@ export default function Dashboard({
           </div>
         </div>
 
-        <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-3xs flex items-center gap-4">
+        <div 
+          onClick={() => onNavigateToTab?.('progress')}
+          className={`bg-white border border-slate-100 rounded-2xl p-5 shadow-3xs flex items-center gap-4 ${
+            onNavigateToTab ? 'hover:border-amber-300 hover:shadow-xs transition-all cursor-pointer' : ''
+          }`}
+          title={onNavigateToTab ? "Click to view Course Mastery Logs" : undefined}
+        >
           <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-100 text-amber-500">
             <Brain className="w-6 h-6" />
           </div>
@@ -156,7 +235,13 @@ export default function Dashboard({
           </div>
         </div>
 
-        <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-3xs flex items-center gap-4">
+        <div 
+          onClick={() => onNavigateToTab?.('wellbeing')}
+          className={`bg-white border border-slate-100 rounded-2xl p-5 shadow-3xs flex items-center gap-4 ${
+            onNavigateToTab ? 'hover:border-rose-300 hover:shadow-xs transition-all cursor-pointer' : ''
+          }`}
+          title={onNavigateToTab ? "Click to view Burnout Prevention Well-being log" : undefined}
+        >
           <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-100 text-rose-600">
             <Heart className="w-6 h-6" />
           </div>
@@ -250,8 +335,8 @@ export default function Dashboard({
             <div>
               <div className="flex justify-between items-start">
                 <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-md px-2 py-0.5 uppercase tracking-wider">
-                  <Sparkles className="w-3 h-3" />
-                  Gemini AI Routine Coach
+                  <Sparkles className="w-3 h-3 animate-pulse" />
+                  {suggestions?.isFallback ? "Local Heuristic Coach" : "Gemini AI Routine Coach"}
                 </span>
                 
                 <button
